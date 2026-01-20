@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worm Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        #gameContainer {
+            position: relative;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        #gameCanvas {
+            display: block;
+            background: #0a1628;
+        }
+        
+        #leaderboard {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            min-width: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        #leaderboard h3 {
+            margin-bottom: 10px;
+            text-align: center;
+            color: #4CAF50;
+            font-size: 18px;
+        }
+        
+        .leaderboard-entry {
+            padding: 5px;
+            margin: 3px 0;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+        
+        .leaderboard-entry.player {
+            background: rgba(76, 175, 80, 0.3);
+            font-weight: bold;
+        }
+        
+        .leaderboard-entry.npc {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        #stats {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+        
+        #stats div {
+            margin: 5px 0;
+        }
+        
+        .stat-label {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        
+        #gameOver {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px;
+            border-radius: 15px;
+            border: 3px solid #FF0000;
+            z-index: 1000;
+            text-align: center;
+            display: none;
+        }
+        
+        #gameOver h2 {
+            color: #FF0000;
+            margin-bottom: 20px;
+            font-size: 32px;
+        }
+        
+        #gameOver p {
+            color: white;
+            margin: 10px 0;
+            font-size: 18px;
+        }
+        
+        #gameOver button {
+            margin-top: 20px;
+            padding: 15px 40px;
+            font-size: 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        #gameOver button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="1200" height="700"></canvas>
+        <div id="stats">
+            <div><span class="stat-label">Your Length:</span> <span id="playerSize">5</span></div>
+            <div><span class="stat-label">Eaten:</span> <span id="eaten">0</span></div>
+            <div><span class="stat-label">Rank:</span> <span id="rank">51/51</span></div>
+        </div>
+        <div id="leaderboard">
+            <h3>🏆 Leaderboard</h3>
+            <div id="leaderboardList"></div>
+        </div>
+    </div>
+    
+    <div id="gameOver">
+        <h2>💀 YOU DIED! 💀</h2>
+        <p>You hit the barrier!</p>
+        <p>Final Score: <span id="finalScore">0</span></p>
+        <p>Final Length: <span id="finalLength">0</span></p>
+        <button onclick="restartGame()">Restart Game</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Game constants
+        const WORLD_WIDTH = 3000;
+        const WORLD_HEIGHT = 3000;
+        const SEGMENT_SIZE = 8;
+        const SEGMENT_SPACING = 2;
+        const NPC_COUNT = 50;
+        const FLEE_DISTANCE = 250;
+        const BARRIER_WIDTH = 30;
+        
+        // Worm names
+        const wormNames = [
+            'Slither', 'Wiggle', 'Squirm', 'Noodle', 'Slinky', 'Curly', 'Twisty', 'Zigzag',
+            'Stretch', 'Bendy', 'Loopy', 'Coily', 'Wavy', 'Snaky', 'Wormy', 'Crawler',
+            'Inchy', 'Glider', 'Sidewinder', 'Ribbon', 'Wriggles', 'Squiggly', 'Tangles', 'Loops',
+            'Spiral', 'Helix', 'Slimey', 'Gummy', 'Jelly', 'Rubber', 'Elastic', 'Bouncy',
+            'Flappy', 'Whippy', 'Dangly', 'Flopsy', 'Swirly', 'Twirly', 'Curvy', 'Bumpy',
+            'Lumpy', 'Stumpy', 'Chompy', 'Munch', 'Nibbles', 'Bites', 'Snapper', 'Chomper',
+            'Muncher', 'Gobbles', 'Wiggly', 'Jiggly', 'Wobbly', 'Shaky'
+        ];
+        
+        const colorOptions = ['#FF0000', '#FF6B00', '#FFD700', '#00FF00', '#00FFFF', '#0000FF', '#FF00FF', '#FF1493', '#9400D3', '#FFFFFF'];
+        
+        let usedNames = new Set();
+        let gameActive = true;
+        
+        function getRandomName() {
+            let name;
+            do {
+                name = wormNames[Math.floor(Math.random() * wormNames.length)];
+            } while (usedNames.has(name) && usedNames.size < wormNames.length);
+            usedNames.add(name);
+            return name;
+        }
+        
+        function getRandomColor() {
+            return colorOptions[Math.floor(Math.random() * colorOptions.length)];
+        }
+        
+        // Keyboard state
+        const keys = {};
+        window.addEventListener('keydown', (e) => {
+            if (gameActive) keys[e.key] = true;
+        });
+        window.addEventListener('keyup', (e) => keys[e.key] = false);
+        
+        // Create worm with segments
+        function createWorm(x, y, length, color, name) {
+            const segments = [];
+            for (let i = 0; i < length; i++) {
+                segments.push({ x: x - i * (SEGMENT_SIZE + SEGMENT_SPACING), y: y });
+            }
+            return {
+                segments: segments,
+                color: color,
+                name: name,
+                vx: 0,
+                vy: 0,
+                targetX: Math.random() * (WORLD_WIDTH - 200) + 100,
+                targetY: Math.random() * (WORLD_HEIGHT - 200) + 100,
+                thickness: SEGMENT_SIZE // All worms start with base thickness
+            };
+        }
+        
+        // Player worm
+        let player = createWorm(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 5, '#4CAF50', 'You');
+        player.eaten = 0;
+        
+        // Camera
+        const camera = { x: 0, y: 0 };
+        
+        // NPCs
+        const npcs = [];
+        const npcColors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A8E6CF', '#FF8B94', '#C7CEEA', '#FFDAC1'];
+        
+        // Initialize NPCs
+        function initNPCs() {
+            usedNames.clear();
+            npcs.length = 0;
+            for (let i = 0; i < NPC_COUNT; i++) {
+                const length = 3 + Math.floor(Math.random() * 8);
+                const x = Math.random() * (WORLD_WIDTH - 200) + 100;
+                const y = Math.random() * (WORLD_HEIGHT - 200) + 100;
+                const color = npcColors[Math.floor(Math.random() * npcColors.length)];
+                npcs.push(createWorm(x, y, length, color, getRandomName()));
+            }
+        }
+        
+        // Update camera to follow player
+        function updateCamera() {
+            const head = player.segments[0];
+            camera.x = head.x - canvas.width / 2;
+            camera.y = head.y - canvas.height / 2;
+            
+            camera.x = Math.max(0, Math.min(camera.x, WORLD_WIDTH - canvas.width));
+            camera.y = Math.max(0, Math.min(camera.y, WORLD_HEIGHT - canvas.height));
+        }
+        
+        // Move worm segments
+        function moveWorm(worm, dx, dy, isPlayer = false) {
+            const speed = isPlayer ? 4 : 2.5;
+            const head = worm.segments[0];
+            
+            // Normalize direction
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance > 0) {
+                dx = (dx / distance) * speed;
+                dy = (dy / distance) * speed;
+            }
+            
+            // New head position
+            const newX = head.x + dx;
+            const newY = head.y + dy;
+            
+            // Keep NPCs in bounds
+            let boundedX, boundedY;
+            if (isPlayer) {
+                // Player can move freely but will die if hitting barrier
+                boundedX = newX;
+                boundedY = newY;
+            } else {
+                // NPCs stay within safe bounds
+                boundedX = Math.max(SEGMENT_SIZE + BARRIER_WIDTH, Math.min(newX, WORLD_WIDTH - SEGMENT_SIZE - BARRIER_WIDTH));
+                boundedY = Math.max(SEGMENT_SIZE + BARRIER_WIDTH, Math.min(newY, WORLD_HEIGHT - SEGMENT_SIZE - BARRIER_WIDTH));
+            }
+            
+            // Add new head
+            worm.segments.unshift({ x: boundedX, y: boundedY });
+            
+            // Remove tail
+            worm.segments.pop();
+        }
+        
+        // Update player
+        function updatePlayer() {
+            if (!gameActive) return;
+            
+            let dx = 0;
+            let dy = 0;
+            
+            if (keys['ArrowUp'] || keys['w'] || keys['W']) dy = -1;
+            if (keys['ArrowDown'] || keys['s'] || keys['S']) dy = 1;
+            if (keys['ArrowLeft'] || keys['a'] || keys['A']) dx = -1;
+            if (keys['ArrowRight'] || keys['d'] || keys['D']) dx = 1;
+            
+            if (dx !== 0 || dy !== 0) {
+                moveWorm(player, dx, dy, true);
+            }
+            
+            // Check if player hit the barrier
+            const head = player.segments[0];
+            if (head.x < BARRIER_WIDTH || head.x > WORLD_WIDTH - BARRIER_WIDTH ||
+                head.y < BARRIER_WIDTH || head.y > WORLD_HEIGHT - BARRIER_WIDTH) {
+                playerDied();
+            }
+        }
+        
+        // Player death
+        function playerDied() {
+            gameActive = false;
+            document.getElementById('finalScore').textContent = player.eaten;
+            document.getElementById('finalLength').textContent = player.segments.length;
+            document.getElementById('gameOver').style.display = 'block';
+        }
+        
+        // Restart game
+        window.restartGame = function() {
+            player = createWorm(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 5, '#4CAF50', 'You');
+            player.eaten = 0;
+            initNPCs();
+            gameActive = true;
+            document.getElementById('gameOver').style.display = 'none';
+        }
+        
+        // Update NPCs (they wander randomly and chase nearby worms)
+        function updateNPCs() {
+            npcs.forEach(npc => {
+                const npcHead = npc.segments[0];
+                
+                // Look for nearby worms to chase
+                let nearestWorm = null;
+                let nearestDistance = 200;
+                
+                npcs.forEach(otherNpc => {
+                    if (otherNpc === npc) return;
+                    
+                    const otherHead = otherNpc.segments[0];
+                    const dx = otherHead.x - npcHead.x;
+                    const dy = otherHead.y - npcHead.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < nearestDistance) {
+                        nearestDistance = distance;
+                        nearestWorm = otherNpc;
+                    }
+                });
+                
+                let moveX = 0;
+                let moveY = 0;
+                
+                if (nearestWorm) {
+                    const targetHead = nearestWorm.segments[0];
+                    const dx = targetHead.x - npcHead.x;
+                    const dy = targetHead.y - npcHead.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    moveX = dx / distance;
+                    moveY = dy / distance;
+                } else {
+                    const tdx = npc.targetX - npcHead.x;
+                    const tdy = npc.targetY - npcHead.y;
+                    const tdist = Math.sqrt(tdx * tdx + tdy * tdy);
+                    
+                    if (tdist < 30) {
+                        npc.targetX = Math.random() * (WORLD_WIDTH - 200) + 100;
+                        npc.targetY = Math.random() * (WORLD_HEIGHT - 200) + 100;
+                    }
+                    
+                    moveX = tdx / tdist;
+                    moveY = tdy / tdist;
+                }
+                
+                moveWorm(npc, moveX, moveY, false);
+            });
+        }
+        
+        // Check collisions
+        function checkCollisions() {
+            if (!gameActive) return;
+            
+            const playerHead = player.segments[0];
+            
+            // Player vs NPCs
+            for (let i = 0; i < npcs.length; i++) {
+                const npc = npcs[i];
+                const npcHead = npc.segments[0];
+                
+                const dx = playerHead.x - npcHead.x;
+                const dy = playerHead.y - npcHead.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < player.thickness + npc.thickness) {
+                    const segmentsToAdd = npc.segments.length;
+                    
+                    for (let j = 0; j < segmentsToAdd; j++) {
+                        const tail = player.segments[player.segments.length - 1];
+                        player.segments.push({ x: tail.x, y: tail.y });
+                    }
+                    
+                    player.eaten++;
+                    
+                    // Increase thickness
+                    player.thickness = Math.min(50, player.thickness + 0.5);
+                    
+                    // Change color every 100
+                    if (player.eaten % 100 === 0) {
+                        player.color = getRandomColor();
+                    }
+                    
+                    respawnNPC(npc);
+                }
+            }
+            
+            // NPC vs NPC collisions
+            for (let i = 0; i < npcs.length; i++) {
+                for (let j = i + 1; j < npcs.length; j++) {
+                    const npc1 = npcs[i];
+                    const npc2 = npcs[j];
+                    
+                    const head1 = npc1.segments[0];
+                    const head2 = npc2.segments[0];
+                    
+                    const dx = head1.x - head2.x;
+                    const dy = head1.y - head2.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < npc1.thickness + npc2.thickness) {
+                        if (npc1.segments.length >= npc2.segments.length) {
+                            const segmentsToAdd = npc2.segments.length;
+                            for (let k = 0; k < segmentsToAdd; k++) {
+                                const tail = npc1.segments[npc1.segments.length - 1];
+                                npc1.segments.push({ x: tail.x, y: tail.y });
+                            }
+                            // NPC1 gets thicker (max 50)
+                            npc1.thickness = Math.min(50, npc1.thickness + 0.5);
+                            respawnNPC(npc2);
+                        } else {
+                            const segmentsToAdd = npc1.segments.length;
+                            for (let k = 0; k < segmentsToAdd; k++) {
+                                const tail = npc2.segments[npc2.segments.length - 1];
+                                npc2.segments.push({ x: tail.x, y: tail.y });
+                            }
+                            // NPC2 gets thicker (max 50)
+                            npc2.thickness = Math.min(50, npc2.thickness + 0.5);
+                            respawnNPC(npc1);
+                        }
+                    }
+                }
+            }
+        }
+        
+        function respawnNPC(npc) {
+            const newLength = 3 + Math.floor(Math.random() * 8);
+            const newX = Math.random() * (WORLD_WIDTH - 200) + 100;
+            const newY = Math.random() * (WORLD_HEIGHT - 200) + 100;
+            
+            usedNames.delete(npc.name);
+            
+            npc.segments = [];
+            for (let j = 0; j < newLength; j++) {
+                npc.segments.push({ x: newX - j * (SEGMENT_SIZE + SEGMENT_SPACING), y: newY });
+            }
+            
+            npc.name = getRandomName();
+            npc.color = npcColors[Math.floor(Math.random() * npcColors.length)];
+            npc.targetX = Math.random() * (WORLD_WIDTH - 200) + 100;
+            npc.targetY = Math.random() * (WORLD_HEIGHT - 200) + 100;
+        }
+        
+        // Draw grid
+        function drawGrid() {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.lineWidth = 1;
+            
+            const gridSize = 50;
+            const startX = Math.floor(camera.x / gridSize) * gridSize;
+            const startY = Math.floor(camera.y / gridSize) * gridSize;
+            
+            for (let x = startX; x < camera.x + canvas.width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x - camera.x, 0);
+                ctx.lineTo(x - camera.x, canvas.height);
+                ctx.stroke();
+            }
+            
+            for (let y = startY; y < camera.y + canvas.height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y - camera.y);
+                ctx.lineTo(canvas.width, y - camera.y);
+                ctx.stroke();
+            }
+        }
+        
+        // Draw barriers
+        function drawBarriers() {
+            ctx.fillStyle = '#FF0000';
+            ctx.strokeStyle = '#FF5555';
+            ctx.lineWidth = 3;
+            
+            // Top barrier
+            if (camera.y < BARRIER_WIDTH + 50) {
+                ctx.fillRect(-camera.x, -camera.y, WORLD_WIDTH, BARRIER_WIDTH);
+                ctx.strokeRect(-camera.x, -camera.y, WORLD_WIDTH, BARRIER_WIDTH);
+            }
+            
+            // Bottom barrier
+            if (camera.y + canvas.height > WORLD_HEIGHT - BARRIER_WIDTH - 50) {
+                ctx.fillRect(-camera.x, WORLD_HEIGHT - BARRIER_WIDTH - camera.y, WORLD_WIDTH, BARRIER_WIDTH);
+                ctx.strokeRect(-camera.x, WORLD_HEIGHT - BARRIER_WIDTH - camera.y, WORLD_WIDTH, BARRIER_WIDTH);
+            }
+            
+            // Left barrier
+            if (camera.x < BARRIER_WIDTH + 50) {
+                ctx.fillRect(-camera.x, -camera.y, BARRIER_WIDTH, WORLD_HEIGHT);
+                ctx.strokeRect(-camera.x, -camera.y, BARRIER_WIDTH, WORLD_HEIGHT);
+            }
+            
+            // Right barrier
+            if (camera.x + canvas.width > WORLD_WIDTH - BARRIER_WIDTH - 50) {
+                ctx.fillRect(WORLD_WIDTH - BARRIER_WIDTH - camera.x, -camera.y, BARRIER_WIDTH, WORLD_HEIGHT);
+                ctx.strokeRect(WORLD_WIDTH - BARRIER_WIDTH - camera.x, -camera.y, BARRIER_WIDTH, WORLD_HEIGHT);
+            }
+        }
+        
+        // Draw worm
+        function drawWorm(worm, isPlayer = false) {
+            const segmentRadius = worm.thickness;
+            
+            worm.segments.forEach((segment, index) => {
+                const screenX = segment.x - camera.x;
+                const screenY = segment.y - camera.y;
+                
+                ctx.fillStyle = worm.color;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, segmentRadius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                if (isPlayer || index === 0) {
+                    ctx.strokeStyle = isPlayer ? '#ffffff' : 'rgba(255, 255, 255, 0.3)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            });
+            
+            const head = worm.segments[0];
+            const screenX = head.x - camera.x;
+            const screenY = head.y - camera.y;
+            
+            const eyeOffset = segmentRadius * 0.4;
+            const eyeSize = segmentRadius * 0.25;
+            
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(screenX - eyeOffset, screenY - eyeOffset, eyeSize, 0, Math.PI * 2);
+            ctx.arc(screenX + eyeOffset, screenY - eyeOffset, eyeSize, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(screenX - eyeOffset, screenY - eyeOffset, eyeSize * 0.5, 0, Math.PI * 2);
+            ctx.arc(screenX + eyeOffset, screenY - eyeOffset, eyeSize * 0.5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = 'white';
+            ctx.font = isPlayer ? 'bold 14px Arial' : '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(worm.name, screenX, screenY - segmentRadius - 10);
+            ctx.fillText(worm.segments.length, screenX, screenY - segmentRadius - 25);
+        }
+        
+        // Update leaderboard
+        function updateLeaderboard() {
+            const allWorms = [player, ...npcs];
+            allWorms.sort((a, b) => b.segments.length - a.segments.length);
+            
+            const playerRank = allWorms.findIndex(w => w === player) + 1;
+            document.getElementById('rank').textContent = `${playerRank}/${allWorms.length}`;
+            
+            const leaderboardList = document.getElementById('leaderboardList');
+            leaderboardList.innerHTML = '';
+            
+            allWorms.forEach((worm, index) => {
+                const entry = document.createElement('div');
+                entry.className = `leaderboard-entry ${worm === player ? 'player' : 'npc'}`;
+                entry.innerHTML = `
+                    <span>${index + 1}. ${worm.name}</span>
+                    <span>${worm.segments.length}</span>
+                `;
+                leaderboardList.appendChild(entry);
+            });
+        }
+        
+        // Update stats
+        function updateStats() {
+            document.getElementById('playerSize').textContent = player.segments.length;
+            document.getElementById('eaten').textContent = player.eaten;
+        }
+        
+        // Main game loop
+        function gameLoop() {
+            ctx.fillStyle = '#0a1628';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            updatePlayer();
+            updateNPCs();
+            checkCollisions();
+            updateCamera();
+            
+            drawGrid();
+            drawBarriers();
+            
+            npcs.forEach(npc => drawWorm(npc, false));
+            drawWorm(player, true);
+            
+            updateStats();
+            updateLeaderboard();
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        initNPCs();
+        gameLoop();
+    </script>
+</body>
+</html>
