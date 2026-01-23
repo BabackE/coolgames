@@ -1,0 +1,1767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Arena Battle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+        
+        #gameContainer {
+            position: relative;
+            background: #0f3460;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        #gameCanvas {
+            display: block;
+            border: 3px solid #16213e;
+        }
+        
+        #leaderboard {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(22, 33, 62, 0.9);
+            border: 2px solid #e94560;
+            border-radius: 8px;
+            padding: 15px;
+            color: white;
+            min-width: 200px;
+            font-size: 14px;
+        }
+        
+        #leaderboard h3 {
+            color: #e94560;
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 18px;
+        }
+        
+        .leaderboard-entry {
+            padding: 5px;
+            margin: 3px 0;
+            background: rgba(233, 69, 96, 0.2);
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .leaderboard-entry.player {
+            background: rgba(255, 215, 0, 0.3);
+            border: 1px solid gold;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(22, 33, 62, 0.9);
+            border: 2px solid #e94560;
+            border-radius: 8px;
+            padding: 10px;
+            color: white;
+            font-size: 12px;
+        }
+        
+        #score {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(22, 33, 62, 0.9);
+            border: 2px solid gold;
+            border-radius: 8px;
+            padding: 10px 15px;
+            color: gold;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        #swordSelectionModal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        #swordSelectionModal h1 {
+            color: #e94560;
+            font-size: 48px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(233, 69, 96, 0.8);
+        }
+        
+        #swordSelectionModal h2 {
+            color: #FFD700;
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+        
+        #swordGrid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            max-width: 900px;
+            padding: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .sword-card {
+            background: rgba(22, 33, 62, 0.9);
+            border: 3px solid #e94560;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        
+        .sword-card:hover {
+            transform: scale(1.05);
+            border-color: #FFD700;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+        }
+        
+        .sword-card.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-color: #555;
+        }
+        
+        .sword-card.locked:hover {
+            transform: none;
+            box-shadow: none;
+            border-color: #555;
+        }
+        
+        .sword-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #FFD700;
+            margin-bottom: 10px;
+        }
+        
+        .sword-stats {
+            color: #FFF;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        
+        .sword-requirement {
+            color: #FF4500;
+            font-size: 12px;
+            margin-top: 10px;
+            font-style: italic;
+        }
+        
+        .sword-preview {
+            margin: 15px 0;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="swordSelectionModal">
+            <h1>TIME'S UP!</h1>
+            <h2 id="finalStats"></h2>
+            <div id="swordGrid"></div>
+        </div>
+        <div id="score">Size: 20 | Kills: 0</div>
+        <div id="timer" style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(22, 33, 62, 0.9); border: 2px solid #e94560; border-radius: 8px; padding: 10px 20px; color: #FFF; font-size: 24px; font-weight: bold; text-align: center; min-width: 150px;">3:00</div>
+        <div id="leaderboard">
+            <h3>🏆 Leaderboard</h3>
+            <div id="leaderboardList"></div>
+        </div>
+        <div id="controls">
+            <div><strong>Controls:</strong></div>
+            <div>Move: WASD or Arrow Keys</div>
+            <div>Attack: SPACE or ENTER</div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Game settings
+        const CANVAS_SIZE = 800;
+        const BLOCK_SIZE = CANVAS_SIZE / 5; // 5 blocks fit on screen
+        const WORLD_SIZE = 70 * BLOCK_SIZE; // 70 blocks
+        const INITIAL_SIZE = 20;
+        let SWORD_LENGTH = 120; // Will be updated by selected sword
+        let SWORD_WIDTH = 20; // Will be updated by selected sword
+        let SWORD_DAMAGE = 0.3; // Will be updated by selected sword
+        const SWORD_DURATION = 300; // ms
+        const SWORD_SWING_ANGLE = Math.PI / 2.5; // Wider swing arc
+        const BOT_COUNT = 125;
+        
+        canvas.width = CANVAS_SIZE;
+        canvas.height = CANVAS_SIZE;
+        
+        // Game timer
+        const ROUND_DURATION = 180; // 3 minutes in seconds
+        let roundStartTime = Date.now();
+        let timeRemaining = ROUND_DURATION;
+        
+        // Sword system
+        let currentSword = {
+            name: 'Iron Sword',
+            length: 120,
+            width: 20,
+            damage: 0.3,
+            color: '#C0C0C0'
+        };
+        
+        const swordTiers = [
+            // Basic swords (always available)
+            {
+                name: 'Iron Sword',
+                length: 120,
+                width: 20,
+                damage: 0.3,
+                color: '#C0C0C0',
+                requirement: 0
+            },
+            {
+                name: 'Steel Blade',
+                length: 130,
+                width: 22,
+                damage: 0.35,
+                color: '#A8B8C8',
+                requirement: 0
+            },
+            // Medium tier (5+ kills)
+            {
+                name: 'Silver Edge',
+                length: 140,
+                width: 24,
+                damage: 0.4,
+                color: '#E8E8E8',
+                requirement: 5
+            },
+            {
+                name: 'Crimson Blade',
+                length: 145,
+                width: 25,
+                damage: 0.42,
+                color: '#DC143C',
+                requirement: 8
+            },
+            // High tier (15+ kills)
+            {
+                name: 'Dragon Slayer',
+                length: 155,
+                width: 28,
+                damage: 0.45,
+                color: '#FFD700',
+                requirement: 15
+            },
+            {
+                name: 'Obsidian Destroyer',
+                length: 160,
+                width: 30,
+                damage: 0.48,
+                color: '#2C003E',
+                requirement: 20
+            },
+            // Legendary tier (30+ kills)
+            {
+                name: 'Excalibur',
+                length: 170,
+                width: 32,
+                damage: 0.5,
+                color: '#4169E1',
+                requirement: 30
+            },
+            {
+                name: 'Ragnarok',
+                length: 180,
+                width: 35,
+                damage: 0.55,
+                color: '#FF4500',
+                requirement: 40
+            },
+            // Ultimate tier (50+ kills)
+            {
+                name: 'Godslayer',
+                length: 200,
+                width: 40,
+                damage: 0.6,
+                color: '#9400D3',
+                requirement: 50
+            }
+        ];
+        
+        // Player
+        const player = {
+            x: WORLD_SIZE / 2,
+            y: WORLD_SIZE / 2,
+            size: INITIAL_SIZE,
+            color: '#FFD700',
+            speed: 5,
+            kills: 0,
+            name: 'You',
+            swordActive: false,
+            swordAngle: -Math.PI / 2, // Facing up
+            swordBaseAngle: -Math.PI / 2,
+            swordCooldown: 0,
+            swordSwingProgress: 0,
+            facingAngle: -Math.PI / 2 // Facing up initially
+        };
+        
+        // Notification system for bonuses
+        let notifications = [];
+        
+        // Shockwave system
+        let shockwaveActive = false;
+        let shockwaveRadius = 0;
+        let shockwaveMaxRadius = WORLD_SIZE * 2;
+        
+        function triggerVictoryShockwave() {
+            shockwaveActive = true;
+            shockwaveRadius = 0;
+            
+            // Show massive victory notification
+            showNotification('💥 ULTIMATE VICTORY! 💥', '#FFD700', 5000);
+            
+            // Animate shockwave expansion
+            const shockwaveInterval = setInterval(() => {
+                shockwaveRadius += 100;
+                
+                if (shockwaveRadius > shockwaveMaxRadius) {
+                    clearInterval(shockwaveInterval);
+                    
+                    // End the round after shockwave completes
+                    setTimeout(() => {
+                        shockwaveActive = false;
+                        window.roundEnded = true;
+                        showSwordSelection();
+                    }, 1000);
+                }
+            }, 16);
+        }
+        
+        function drawShockwave() {
+            if (!shockwaveActive) return;
+            
+            // Draw expanding shockwave circle
+            ctx.strokeStyle = `rgba(255, 215, 0, ${1 - shockwaveRadius / shockwaveMaxRadius})`;
+            ctx.lineWidth = 20;
+            ctx.beginPath();
+            ctx.arc(player.x - camera.x, player.y - camera.y, shockwaveRadius, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Secondary wave
+            if (shockwaveRadius > 50) {
+                ctx.strokeStyle = `rgba(255, 100, 0, ${0.5 - shockwaveRadius / shockwaveMaxRadius})`;
+                ctx.lineWidth = 15;
+                ctx.beginPath();
+                ctx.arc(player.x - camera.x, player.y - camera.y, shockwaveRadius - 50, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+        
+        function updateShockwave() {
+            if (!shockwaveActive) return;
+            
+            // Kill all bots within shockwave radius
+            bots.forEach(bot => {
+                const dx = bot.x - player.x;
+                const dy = bot.y - player.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < shockwaveRadius && bot.size > 0) {
+                    // Disintegrate bot
+                    bot.size = 0;
+                }
+            });
+        }
+        
+        function showNotification(text, color, duration = 2000) {
+            notifications.push({
+                text: text,
+                color: color,
+                alpha: 1,
+                y: CANVAS_SIZE / 2,
+                createdAt: Date.now(),
+                duration: duration
+            });
+        }
+        
+        function updateNotifications() {
+            const now = Date.now();
+            notifications = notifications.filter(notif => {
+                const age = now - notif.createdAt;
+                if (age > notif.duration) return false;
+                
+                // Fade out in last 500ms
+                if (age > notif.duration - 500) {
+                    notif.alpha = (notif.duration - age) / 500;
+                }
+                
+                // Float upward
+                notif.y -= 1;
+                return true;
+            });
+        }
+        
+        function drawNotifications() {
+            notifications.forEach(notif => {
+                ctx.save();
+                ctx.globalAlpha = notif.alpha;
+                ctx.font = 'bold 32px Arial';
+                ctx.textAlign = 'center';
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 4;
+                ctx.strokeText(notif.text, CANVAS_SIZE / 2, notif.y);
+                ctx.fillStyle = notif.color;
+                ctx.fillText(notif.text, CANVAS_SIZE / 2, notif.y);
+                ctx.restore();
+            });
+        }
+        
+        // Camera
+        const camera = {
+            x: player.x - CANVAS_SIZE / 2,
+            y: player.y - CANVAS_SIZE / 2
+        };
+        
+        // Input
+        const keys = {};
+        
+        // Bots
+        const bots = [];
+        const botNames = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 
+                          'Iota', 'Kappa', 'Lambda', 'Mu', 'Nu', 'Xi', 'Omicron', 'Pi', 'Rho', 
+                          'Sigma', 'Tau', 'Upsilon', 'Phi', 'Chi', 'Psi', 'Omega', 'Atlas', 
+                          'Orion', 'Nova', 'Nebula', 'Titan', 'Chronos', 'Phoenix', 'Hydra',
+                          'Draco', 'Perseus', 'Andromeda', 'Lyra', 'Vega', 'Sirius', 'Polaris',
+                          'Aurora', 'Blaze', 'Storm', 'Shadow', 'Frost', 'Spark', 'Ember',
+                          'Void', 'Echo', 'Zenith', 'Cipher'];
+        
+        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', 
+                        '#DFE6E9', '#74B9FF', '#A29BFE', '#FD79A8', '#FDCB6E',
+                        '#6C5CE7', '#00B894', '#FF7675', '#00CEC9', '#81ECEC'];
+        
+        function createBot() {
+            const margin = 100;
+            return {
+                x: margin + Math.random() * (WORLD_SIZE - margin * 2),
+                y: margin + Math.random() * (WORLD_SIZE - margin * 2),
+                size: 20 + Math.random() * 35, // Larger starting size
+                color: colors[Math.floor(Math.random() * colors.length)],
+                speed: 2.5 + Math.random() * 2.5, // Faster bots
+                kills: 0,
+                name: botNames[Math.floor(Math.random() * botNames.length)] + Math.floor(Math.random() * 100),
+                targetX: 0,
+                targetY: 0,
+                swordActive: false,
+                swordAngle: -Math.PI / 2,
+                swordBaseAngle: -Math.PI / 2,
+                swordCooldown: 0,
+                swordSwingProgress: 0,
+                facingAngle: -Math.PI / 2,
+                nextActionTime: Date.now() + Math.random() * 2000,
+                // AI personality traits - more aggressive
+                aggression: 0.5 + Math.random() * 0.5, // Higher base aggression (0.5-1.0)
+                awareness: 400 + Math.random() * 400, // Better awareness
+                courage: 0.3 + Math.random() * 0.7, // More courageous
+                currentTarget: null,
+                state: 'wandering', // wandering, chasing, fleeing, attacking
+                fleeTimer: 0
+            };
+        }
+        
+        // Initialize bots
+        for (let i = 0; i < BOT_COUNT; i++) {
+            bots.push(createBot());
+        }
+        
+        // Input handlers
+        document.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            
+            if (e.key === ' ' || e.key === 'Enter') {
+                if (!player.swordActive && player.swordCooldown <= 0) {
+                    activateSword(player);
+                }
+                e.preventDefault();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+        
+        function activateSword(entity) {
+            entity.swordActive = true;
+            entity.swordSwingProgress = 0;
+            entity.swordBaseAngle = entity.facingAngle;
+            entity.swordCooldown = SWORD_DURATION + 200;
+            
+            const swingInterval = setInterval(() => {
+                entity.swordSwingProgress += 0.1;
+                if (entity.swordSwingProgress >= 1) {
+                    clearInterval(swingInterval);
+                    entity.swordActive = false;
+                }
+            }, 16);
+        }
+        
+        function respawnEntity(entity) {
+            const margin = 100;
+            entity.x = margin + Math.random() * (WORLD_SIZE - margin * 2);
+            entity.y = margin + Math.random() * (WORLD_SIZE - margin * 2);
+            entity.size = 15 + Math.random() * 20;
+            entity.kills = 0;
+            if (entity.state) {
+                entity.state = 'wandering';
+                entity.currentTarget = null;
+                entity.fleeTimer = 0;
+            }
+        }
+        
+        function checkSwordHit(attacker, target) {
+            if (!attacker.swordActive) return false;
+            
+            // Calculate scaled sword length based on attacker size
+            const sizeScale = attacker.size / INITIAL_SIZE;
+            const scaledSwordLength = SWORD_LENGTH * Math.min(sizeScale, 3);
+            
+            // Calculate current swing angle
+            const swingOffset = (attacker.swordSwingProgress - 0.5) * SWORD_SWING_ANGLE;
+            const currentAngle = attacker.swordBaseAngle + swingOffset;
+            
+            // Check multiple points along the sword blade
+            const swordStartX = attacker.x + Math.cos(currentAngle) * attacker.size * 0.3;
+            const swordStartY = attacker.y + Math.sin(currentAngle) * attacker.size * 0.3;
+            const swordEndX = attacker.x + Math.cos(currentAngle) * (attacker.size + scaledSwordLength);
+            const swordEndY = attacker.y + Math.sin(currentAngle) * (attacker.size + scaledSwordLength);
+            
+            // Check 10 points along the sword blade
+            const checkPoints = 10;
+            for (let i = 0; i <= checkPoints; i++) {
+                const t = i / checkPoints;
+                const checkX = swordStartX + (swordEndX - swordStartX) * t;
+                const checkY = swordStartY + (swordEndY - swordStartY) * t;
+                
+                const dx = checkX - target.x;
+                const dy = checkY - target.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Hit if any point along the blade touches the target
+                if (distance < target.size + 10) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+        
+        function resolveCollisions() {
+            // Check player collision with bots
+            bots.forEach(bot => {
+                const dx = bot.x - player.x;
+                const dy = bot.y - player.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const minDistance = bot.size + player.size;
+                
+                if (distance < minDistance) {
+                    // Push them apart
+                    const overlap = minDistance - distance;
+                    const angle = Math.atan2(dy, dx);
+                    
+                    // Push bot away
+                    bot.x += Math.cos(angle) * overlap * 0.6;
+                    bot.y += Math.sin(angle) * overlap * 0.6;
+                    
+                    // Push player away
+                    player.x -= Math.cos(angle) * overlap * 0.4;
+                    player.y -= Math.sin(angle) * overlap * 0.4;
+                }
+            });
+            
+            // Check bot-to-bot collisions
+            for (let i = 0; i < bots.length; i++) {
+                for (let j = i + 1; j < bots.length; j++) {
+                    const bot1 = bots[i];
+                    const bot2 = bots[j];
+                    
+                    const dx = bot2.x - bot1.x;
+                    const dy = bot2.y - bot1.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const minDistance = bot1.size + bot2.size;
+                    
+                    if (distance < minDistance && distance > 0) {
+                        // Push them apart
+                        const overlap = minDistance - distance;
+                        const angle = Math.atan2(dy, dx);
+                        
+                        // Push both bots apart equally
+                        bot1.x -= Math.cos(angle) * overlap * 0.5;
+                        bot1.y -= Math.sin(angle) * overlap * 0.5;
+                        bot2.x += Math.cos(angle) * overlap * 0.5;
+                        bot2.y += Math.sin(angle) * overlap * 0.5;
+                    }
+                }
+            }
+            
+            // Keep everyone in bounds
+            player.x = Math.max(player.size, Math.min(WORLD_SIZE - player.size, player.x));
+            player.y = Math.max(player.size, Math.min(WORLD_SIZE - player.size, player.y));
+            
+            bots.forEach(bot => {
+                bot.x = Math.max(bot.size, Math.min(WORLD_SIZE - bot.size, bot.x));
+                bot.y = Math.max(bot.size, Math.min(WORLD_SIZE - bot.size, bot.y));
+            });
+        }
+        
+        function updatePlayer() {
+            // Movement with speed scaling based on size
+            let dx = 0;
+            let dy = 0;
+            
+            if (keys['w'] || keys['arrowup']) dy -= 1;
+            if (keys['s'] || keys['arrowdown']) dy += 1;
+            if (keys['a'] || keys['arrowleft']) dx -= 1;
+            if (keys['d'] || keys['arrowright']) dx += 1;
+            
+            // Normalize diagonal movement
+            if (dx !== 0 && dy !== 0) {
+                dx *= 0.707;
+                dy *= 0.707;
+            }
+            
+            // Speed increases with size
+            const sizeSpeedMultiplier = 1 + (player.size - INITIAL_SIZE) / 100;
+            const currentSpeed = player.speed * sizeSpeedMultiplier;
+            
+            player.x += dx * currentSpeed;
+            player.y += dy * currentSpeed;
+            
+            // Keep in bounds
+            player.x = Math.max(player.size, Math.min(WORLD_SIZE - player.size, player.x));
+            player.y = Math.max(player.size, Math.min(WORLD_SIZE - player.size, player.y));
+            
+            // Update facing angle based on movement
+            if (dx !== 0 || dy !== 0) {
+                player.facingAngle = Math.atan2(dy, dx);
+            }
+            
+            // Update sword angle (always visible, swings when attacking)
+            if (player.swordActive) {
+                const swingOffset = (player.swordSwingProgress - 0.5) * SWORD_SWING_ANGLE;
+                player.swordAngle = player.swordBaseAngle + swingOffset;
+            } else {
+                player.swordAngle = player.facingAngle;
+            }
+            
+            // Update sword cooldown
+            if (player.swordCooldown > 0) {
+                player.swordCooldown -= 16;
+            }
+            
+            // Check attacks on bots
+            if (player.swordActive) {
+                bots.forEach(bot => {
+                    if (checkSwordHit(player, bot)) {
+                        const sizeDifference = bot.size - player.size;
+                        let sizeGain = bot.size * (SWORD_DAMAGE * 0.67); // Reduced base gain (about 20% with default sword)
+                        let bonusText = '';
+                        
+                        // Reduced bonuses for killing much bigger enemies
+                        if (sizeDifference > 100) {
+                            // Giant slayer bonus - 2x instead of 3x
+                            sizeGain = bot.size * (SWORD_DAMAGE * 0.67) * 2.0;
+                            bonusText = '🔥 GIANT SLAYER! 2X BONUS! 🔥';
+                            showNotification(bonusText, '#FF0000', 3000);
+                        } else if (sizeDifference > 50) {
+                            // Large bonus - 1.5x instead of 2x
+                            sizeGain = bot.size * (SWORD_DAMAGE * 0.67) * 1.5;
+                            bonusText = '⚡ BIG KILL! 1.5X BONUS! ⚡';
+                            showNotification(bonusText, '#FFA500', 2500);
+                        } else if (sizeDifference > 20) {
+                            // Medium bonus - 1.25x instead of 1.5x
+                            sizeGain = bot.size * (SWORD_DAMAGE * 0.67) * 1.25;
+                            bonusText = '✨ BONUS KILL! 1.25X! ✨';
+                            showNotification(bonusText, '#FFD700', 2000);
+                        }
+                        
+                        player.size += sizeGain;
+                        player.kills++;
+                        respawnEntity(bot);
+                        
+                        // Check for 50 kill victory
+                        if (player.kills >= 50 && !window.victoryTriggered) {
+                            window.victoryTriggered = true;
+                            triggerVictoryShockwave();
+                        }
+                    }
+                });
+            }
+        }
+        
+        function updateBots() {
+            const now = Date.now();
+            
+            bots.forEach(bot => {
+                // Update flee timer
+                if (bot.fleeTimer > 0) {
+                    bot.fleeTimer -= 16;
+                }
+                
+                // AI Decision Making - runs more frequently for better responsiveness
+                if (now > bot.nextActionTime) {
+                    // Find all nearby entities
+                    const nearbyEntities = [];
+                    
+                    // ALWAYS check player - prioritize player detection
+                    const playerDist = Math.hypot(player.x - bot.x, player.y - bot.y);
+                    nearbyEntities.push({
+                        entity: player,
+                        distance: playerDist,
+                        sizeRatio: player.size / bot.size,
+                        isPlayer: true
+                    });
+                    
+                    // Check other bots
+                    bots.forEach(otherBot => {
+                        if (otherBot !== bot) {
+                            const dist = Math.hypot(otherBot.x - bot.x, otherBot.y - bot.y);
+                            if (dist < bot.awareness) {
+                                nearbyEntities.push({
+                                    entity: otherBot,
+                                    distance: dist,
+                                    sizeRatio: otherBot.size / bot.size,
+                                    isPlayer: false
+                                });
+                            }
+                        }
+                    });
+                    
+                    // Sort by distance - attack closest targets first
+                    nearbyEntities.sort((a, b) => a.distance - b.distance);
+                    
+                    // Decision making - much more aggressive
+                    let foundTarget = false;
+                    
+                    for (let nearby of nearbyEntities) {
+                        const isThreat = nearby.sizeRatio > 1.4;
+                        const isWeaker = nearby.sizeRatio < 0.9;
+                        const isSimilar = !isThreat && !isWeaker;
+                        const veryClose = nearby.distance < 150;
+                        const inAttackRange = nearby.distance < bot.size + SWORD_LENGTH + 20;
+                        
+                        // ATTACK if in range and can swing sword
+                        if (inAttackRange && !bot.swordActive && bot.swordCooldown <= 0) {
+                            bot.state = 'attacking';
+                            bot.currentTarget = nearby.entity;
+                            activateSword(bot);
+                            foundTarget = true;
+                            break;
+                        }
+                        
+                        // FLEE from much larger threats
+                        if (isThreat && veryClose && bot.courage < 0.5 && nearby.sizeRatio > 1.8) {
+                            bot.state = 'fleeing';
+                            bot.currentTarget = nearby.entity;
+                            const angle = Math.atan2(nearby.entity.y - bot.y, nearby.entity.x - bot.x);
+                            bot.targetX = bot.x - Math.cos(angle) * 400;
+                            bot.targetY = bot.y - Math.sin(angle) * 400;
+                            bot.fleeTimer = 800;
+                            foundTarget = true;
+                            break;
+                        }
+                        
+                        // HUNT THE PLAYER - very aggressive
+                        if (nearby.isPlayer && nearby.distance < 600) {
+                            // Attack player if close enough OR if player is weaker
+                            if (veryClose || isWeaker || (bot.aggression > 0.4 && !isThreat)) {
+                                bot.state = 'chasing';
+                                bot.currentTarget = nearby.entity;
+                                bot.targetX = nearby.entity.x;
+                                bot.targetY = nearby.entity.y;
+                                foundTarget = true;
+                                break;
+                            }
+                        }
+                        
+                        // ATTACK other bots aggressively
+                        if (!nearby.isPlayer && veryClose) {
+                            // Attack if weaker OR similar size and aggressive
+                            if (isWeaker || (isSimilar && bot.aggression > 0.3)) {
+                                bot.state = 'chasing';
+                                bot.currentTarget = nearby.entity;
+                                bot.targetX = nearby.entity.x;
+                                bot.targetY = nearby.entity.y;
+                                foundTarget = true;
+                                break;
+                            }
+                        }
+                        
+                        // Chase any nearby target if very aggressive
+                        if (nearby.distance < 300 && bot.aggression > 0.6 && !isThreat) {
+                            bot.state = 'chasing';
+                            bot.currentTarget = nearby.entity;
+                            bot.targetX = nearby.entity.x;
+                            bot.targetY = nearby.entity.y;
+                            foundTarget = true;
+                            break;
+                        }
+                    }
+                    
+                    // If no target found and not fleeing, wander
+                    if (!foundTarget && bot.state !== 'fleeing') {
+                        bot.state = 'wandering';
+                        bot.currentTarget = null;
+                        bot.targetX = bot.x + (Math.random() - 0.5) * 300;
+                        bot.targetY = bot.y + (Math.random() - 0.5) * 300;
+                    }
+                    
+                    // Update more frequently for better AI responsiveness
+                    bot.nextActionTime = now + 150 + Math.random() * 300;
+                }
+                
+                // If chasing, continuously update target position and try to attack
+                if (bot.state === 'chasing' && bot.currentTarget) {
+                    bot.targetX = bot.currentTarget.x;
+                    bot.targetY = bot.currentTarget.y;
+                    
+                    const distToTarget = Math.hypot(bot.currentTarget.x - bot.x, bot.currentTarget.y - bot.y);
+                    
+                    // Attack if in range
+                    if (distToTarget < bot.size + SWORD_LENGTH + 20 && !bot.swordActive && bot.swordCooldown <= 0) {
+                        bot.state = 'attacking';
+                        activateSword(bot);
+                    }
+                }
+                
+                // If attacking, keep attacking
+                if (bot.state === 'attacking' && bot.currentTarget) {
+                    bot.targetX = bot.currentTarget.x;
+                    bot.targetY = bot.currentTarget.y;
+                    
+                    const distToTarget = Math.hypot(bot.currentTarget.x - bot.x, bot.currentTarget.y - bot.y);
+                    
+                    if (distToTarget > 200) {
+                        bot.state = 'chasing';
+                    } else if (!bot.swordActive && bot.swordCooldown <= 0) {
+                        activateSword(bot);
+                    }
+                }
+                
+                // Move toward target
+                const dx = bot.targetX - bot.x;
+                const dy = bot.targetY - bot.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > 10) {
+                    const speedMultiplier = bot.state === 'fleeing' ? 1.5 : (bot.state === 'attacking' ? 0.7 : 1);
+                    bot.x += (dx / dist) * bot.speed * speedMultiplier;
+                    bot.y += (dy / dist) * bot.speed * speedMultiplier;
+                    bot.facingAngle = Math.atan2(dy, dx);
+                }
+                
+                // Update sword angle
+                if (bot.swordActive) {
+                    const swingOffset = (bot.swordSwingProgress - 0.5) * SWORD_SWING_ANGLE;
+                    bot.swordAngle = bot.swordBaseAngle + swingOffset;
+                } else {
+                    bot.swordAngle = bot.facingAngle;
+                }
+                
+                // Keep in bounds
+                bot.x = Math.max(bot.size, Math.min(WORLD_SIZE - bot.size, bot.x));
+                bot.y = Math.max(bot.size, Math.min(WORLD_SIZE - bot.size, bot.y));
+                
+                // Update sword cooldown
+                if (bot.swordCooldown > 0) {
+                    bot.swordCooldown -= 16;
+                }
+                
+                // Check bot attacks on player
+                if (bot.swordActive && checkSwordHit(bot, player)) {
+                    const sizeGain = player.size * 0.3;
+                    bot.size += sizeGain;
+                    bot.kills++;
+                    // Player loses size instead of respawning
+                    player.size = Math.max(INITIAL_SIZE * 0.5, player.size - sizeGain);
+                }
+                
+                // Check bot attacks on other bots - ENABLED with reduced size gains
+                if (bot.swordActive) {
+                    bots.forEach(otherBot => {
+                        if (otherBot !== bot && checkSwordHit(bot, otherBot)) {
+                            const sizeDifference = otherBot.size - bot.size;
+                            let sizeGain = otherBot.size * 0.2; // Bots gain 20% of enemy size
+                            
+                            // Bots also get bonuses for killing bigger bots
+                            if (sizeDifference > 100) {
+                                sizeGain = otherBot.size * 0.2 * 2.0; // 2x bonus
+                            } else if (sizeDifference > 50) {
+                                sizeGain = otherBot.size * 0.2 * 1.5; // 1.5x bonus
+                            } else if (sizeDifference > 20) {
+                                sizeGain = otherBot.size * 0.2 * 1.3; // 1.3x bonus
+                            }
+                            
+                            bot.size += sizeGain;
+                            bot.kills++;
+                            respawnEntity(otherBot);
+                        }
+                    });
+                }
+            });
+        }
+        
+        function drawEntity(entity) {
+            const screenX = entity.x - camera.x;
+            const screenY = entity.y - camera.y;
+            
+            // Draw shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.beginPath();
+            ctx.ellipse(screenX + 2, screenY + entity.size + 2, entity.size * 0.8, entity.size * 0.3, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw body (larger circle)
+            const bodyGradient = ctx.createRadialGradient(
+                screenX - entity.size * 0.2, 
+                screenY - entity.size * 0.2, 
+                entity.size * 0.2, 
+                screenX, 
+                screenY, 
+                entity.size
+            );
+            bodyGradient.addColorStop(0, lightenColor(entity.color, 40));
+            bodyGradient.addColorStop(1, entity.color);
+            
+            ctx.fillStyle = bodyGradient;
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, entity.size, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw body outline
+            ctx.strokeStyle = darkenColor(entity.color, 30);
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Draw head (smaller circle on top)
+            const headSize = entity.size * 0.4;
+            const headY = screenY - entity.size * 0.5;
+            
+            const headGradient = ctx.createRadialGradient(
+                screenX - headSize * 0.3, 
+                headY - headSize * 0.3, 
+                headSize * 0.2, 
+                screenX, 
+                headY, 
+                headSize
+            );
+            headGradient.addColorStop(0, lightenColor(entity.color, 60));
+            headGradient.addColorStop(1, lightenColor(entity.color, 20));
+            
+            ctx.fillStyle = headGradient;
+            ctx.beginPath();
+            ctx.arc(screenX, headY, headSize, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Head outline
+            ctx.strokeStyle = darkenColor(entity.color, 40);
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            
+            // Draw eyes
+            const eyeY = headY - headSize * 0.1;
+            const eyeSpacing = headSize * 0.35;
+            const eyeSize = headSize * 0.2;
+            
+            // Eye whites
+            ctx.fillStyle = '#FFF';
+            ctx.beginPath();
+            ctx.arc(screenX - eyeSpacing, eyeY, eyeSize, 0, Math.PI * 2);
+            ctx.arc(screenX + eyeSpacing, eyeY, eyeSize, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Eye outlines
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(screenX - eyeSpacing, eyeY, eyeSize, 0, Math.PI * 2);
+            ctx.arc(screenX + eyeSpacing, eyeY, eyeSize, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Draw pupils (looking in facing direction)
+            const pupilOffsetX = Math.cos(entity.facingAngle) * eyeSize * 0.4;
+            const pupilOffsetY = Math.sin(entity.facingAngle) * eyeSize * 0.4;
+            const pupilSize = eyeSize * 0.65;
+            
+            ctx.fillStyle = '#1a1a1a';
+            ctx.beginPath();
+            ctx.arc(screenX - eyeSpacing + pupilOffsetX, eyeY + pupilOffsetY, pupilSize, 0, Math.PI * 2);
+            ctx.arc(screenX + eyeSpacing + pupilOffsetX, eyeY + pupilOffsetY, pupilSize, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Eye highlights for depth
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            const highlightSize = eyeSize * 0.25;
+            ctx.beginPath();
+            ctx.arc(screenX - eyeSpacing + pupilOffsetX - pupilSize * 0.3, eyeY + pupilOffsetY - pupilSize * 0.3, highlightSize, 0, Math.PI * 2);
+            ctx.arc(screenX + eyeSpacing + pupilOffsetX - pupilSize * 0.3, eyeY + pupilOffsetY - pupilSize * 0.3, highlightSize, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw sword (always visible) - HUGE SHARP BROADSWORD
+            // Scale sword with entity size
+            const sizeScale = entity.size / INITIAL_SIZE;
+            const scaledSwordLength = SWORD_LENGTH * Math.min(sizeScale, 3); // Cap at 3x size
+            const scaledSwordWidth = SWORD_WIDTH * Math.min(sizeScale, 3);
+            
+            const swordStartX = screenX + Math.cos(entity.swordAngle) * entity.size * 0.3;
+            const swordStartY = screenY + Math.sin(entity.swordAngle) * entity.size * 0.3;
+            const swordEndX = screenX + Math.cos(entity.swordAngle) * (entity.size + scaledSwordLength);
+            const swordEndY = screenY + Math.sin(entity.swordAngle) * (entity.size + scaledSwordLength);
+            
+            // Calculate perpendicular angle for blade width
+            const perpAngle = entity.swordAngle + Math.PI / 2;
+            
+            // Define blade shape: starts narrow, widens, then sharply tapers to point
+            const baseWidth = scaledSwordWidth * 0.4; // Narrow at base
+            const maxWidth = scaledSwordWidth * 0.7; // Widens out
+            const taperPoint = scaledSwordLength * 0.65; // Where it starts tapering
+            
+            // Calculate key points along the blade
+            const widePointX = screenX + Math.cos(entity.swordAngle) * (entity.size + taperPoint);
+            const widePointY = screenY + Math.sin(entity.swordAngle) * (entity.size + taperPoint);
+            
+            // Draw blade shadow for depth
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+            ctx.beginPath();
+            const shadowOffset = 3;
+            // Sharp point at tip
+            ctx.moveTo(swordEndX + shadowOffset, swordEndY + shadowOffset);
+            // Taper sharply from wide point
+            ctx.lineTo(
+                widePointX + Math.cos(perpAngle) * maxWidth + shadowOffset,
+                widePointY + Math.sin(perpAngle) * maxWidth + shadowOffset
+            );
+            ctx.lineTo(
+                widePointX - Math.cos(perpAngle) * maxWidth + shadowOffset,
+                widePointY - Math.sin(perpAngle) * maxWidth + shadowOffset
+            );
+            // Back to base
+            ctx.lineTo(
+                swordStartX - Math.cos(perpAngle) * baseWidth + shadowOffset,
+                swordStartY - Math.sin(perpAngle) * baseWidth + shadowOffset
+            );
+            ctx.lineTo(
+                swordStartX + Math.cos(perpAngle) * baseWidth + shadowOffset,
+                swordStartY + Math.sin(perpAngle) * baseWidth + shadowOffset
+            );
+            ctx.closePath();
+            ctx.fill();
+            
+            // Main blade body with gradient
+            const bladeGradient = ctx.createLinearGradient(
+                swordStartX + Math.cos(perpAngle) * maxWidth,
+                swordStartY + Math.sin(perpAngle) * maxWidth,
+                swordStartX - Math.cos(perpAngle) * maxWidth,
+                swordStartY - Math.sin(perpAngle) * maxWidth
+            );
+            bladeGradient.addColorStop(0, '#A0AEC0');
+            bladeGradient.addColorStop(0.3, '#E2E8F0');
+            bladeGradient.addColorStop(0.5, '#FFFFFF');
+            bladeGradient.addColorStop(0.7, '#E2E8F0');
+            bladeGradient.addColorStop(1, '#A0AEC0');
+            
+            ctx.fillStyle = bladeGradient;
+            ctx.beginPath();
+            // Sharp point at tip
+            ctx.moveTo(swordEndX, swordEndY);
+            // Sharp taper from widest point
+            ctx.lineTo(
+                widePointX + Math.cos(perpAngle) * maxWidth,
+                widePointY + Math.sin(perpAngle) * maxWidth
+            );
+            ctx.lineTo(
+                widePointX - Math.cos(perpAngle) * maxWidth,
+                widePointY - Math.sin(perpAngle) * maxWidth
+            );
+            // Gradual widen from base to wide point
+            ctx.lineTo(
+                swordStartX - Math.cos(perpAngle) * baseWidth,
+                swordStartY - Math.sin(perpAngle) * baseWidth
+            );
+            ctx.lineTo(
+                swordStartX + Math.cos(perpAngle) * baseWidth,
+                swordStartY + Math.sin(perpAngle) * baseWidth
+            );
+            ctx.closePath();
+            ctx.fill();
+            
+            // Blade outline for definition
+            ctx.strokeStyle = '#718096';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            
+            // Central ridge/fuller
+            const ridgeWidth = maxWidth * 0.25;
+            const ridgeGradient = ctx.createLinearGradient(
+                swordStartX + Math.cos(perpAngle) * ridgeWidth,
+                swordStartY + Math.sin(perpAngle) * ridgeWidth,
+                swordStartX - Math.cos(perpAngle) * ridgeWidth,
+                swordStartY - Math.sin(perpAngle) * ridgeWidth
+            );
+            ridgeGradient.addColorStop(0, '#CBD5E0');
+            ridgeGradient.addColorStop(0.5, '#F7FAFC');
+            ridgeGradient.addColorStop(1, '#CBD5E0');
+            
+            ctx.fillStyle = ridgeGradient;
+            ctx.beginPath();
+            const ridgeEnd = scaledSwordLength * 0.6;
+            const ridgeEndX = screenX + Math.cos(entity.swordAngle) * (entity.size + ridgeEnd);
+            const ridgeEndY = screenY + Math.sin(entity.swordAngle) * (entity.size + ridgeEnd);
+            ctx.moveTo(ridgeEndX, ridgeEndY);
+            ctx.lineTo(
+                swordStartX + Math.cos(perpAngle) * ridgeWidth,
+                swordStartY + Math.sin(perpAngle) * ridgeWidth
+            );
+            ctx.lineTo(
+                swordStartX - Math.cos(perpAngle) * ridgeWidth,
+                swordStartY - Math.sin(perpAngle) * ridgeWidth
+            );
+            ctx.closePath();
+            ctx.fill();
+            
+            // Sharp edge highlights on both edges
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            // Top edge highlight
+            ctx.beginPath();
+            ctx.moveTo(swordEndX, swordEndY);
+            ctx.lineTo(
+                widePointX + Math.cos(perpAngle) * maxWidth,
+                widePointY + Math.sin(perpAngle) * maxWidth
+            );
+            ctx.lineTo(
+                swordStartX + Math.cos(perpAngle) * baseWidth,
+                swordStartY + Math.sin(perpAngle) * baseWidth
+            );
+            ctx.stroke();
+            
+            // Bottom edge highlight
+            ctx.beginPath();
+            ctx.moveTo(swordEndX, swordEndY);
+            ctx.lineTo(
+                widePointX - Math.cos(perpAngle) * maxWidth,
+                widePointY - Math.sin(perpAngle) * maxWidth
+            );
+            ctx.lineTo(
+                swordStartX - Math.cos(perpAngle) * baseWidth,
+                swordStartY - Math.sin(perpAngle) * baseWidth
+            );
+            ctx.stroke();
+            
+            // Massive hilt
+            const hiltLength = entity.size * 0.45;
+            const hiltWidth = entity.size * 0.35;
+            const hiltStartX = swordStartX - Math.cos(entity.swordAngle) * hiltLength;
+            const hiltStartY = swordStartY - Math.sin(entity.swordAngle) * hiltLength;
+            
+            // Hilt grip with leather wrapping
+            const hiltGradient = ctx.createRadialGradient(
+                swordStartX, swordStartY, 0,
+                swordStartX, swordStartY, hiltWidth
+            );
+            hiltGradient.addColorStop(0, entity === player ? '#8B4513' : '#654321');
+            hiltGradient.addColorStop(1, entity === player ? '#654321' : '#3E2723');
+            
+            ctx.fillStyle = hiltGradient;
+            ctx.beginPath();
+            ctx.moveTo(
+                hiltStartX + Math.cos(perpAngle) * hiltWidth / 2,
+                hiltStartY + Math.sin(perpAngle) * hiltWidth / 2
+            );
+            ctx.lineTo(
+                swordStartX + Math.cos(perpAngle) * hiltWidth / 2,
+                swordStartY + Math.sin(perpAngle) * hiltWidth / 2
+            );
+            ctx.lineTo(
+                swordStartX - Math.cos(perpAngle) * hiltWidth / 2,
+                swordStartY - Math.sin(perpAngle) * hiltWidth / 2
+            );
+            ctx.lineTo(
+                hiltStartX - Math.cos(perpAngle) * hiltWidth / 2,
+                hiltStartY - Math.sin(perpAngle) * hiltWidth / 2
+            );
+            ctx.closePath();
+            ctx.fill();
+            
+            // Leather wrapping detail
+            ctx.strokeStyle = entity === player ? '#A0522D' : '#8B4513';
+            ctx.lineWidth = 2.5;
+            const wraps = 5;
+            for (let i = 0; i < wraps; i++) {
+                const t = i / wraps;
+                const wrapX = hiltStartX + (swordStartX - hiltStartX) * t;
+                const wrapY = hiltStartY + (swordStartY - hiltStartY) * t;
+                ctx.beginPath();
+                ctx.moveTo(
+                    wrapX + Math.cos(perpAngle) * hiltWidth / 2,
+                    wrapY + Math.sin(perpAngle) * hiltWidth / 2
+                );
+                ctx.lineTo(
+                    wrapX - Math.cos(perpAngle) * hiltWidth / 2,
+                    wrapY - Math.sin(perpAngle) * hiltWidth / 2
+                );
+                ctx.stroke();
+            }
+            
+            // Large ornate crossguard
+            const guardWidth = entity.size * 0.65;
+            const guardThickness = entity.size * 0.12;
+            
+            ctx.fillStyle = entity === player ? '#DAA520' : '#CD853F';
+            ctx.beginPath();
+            ctx.moveTo(
+                swordStartX + Math.cos(perpAngle) * guardWidth / 2,
+                swordStartY + Math.sin(perpAngle) * guardWidth / 2
+            );
+            ctx.lineTo(
+                swordStartX + Math.cos(perpAngle) * guardWidth / 2 + Math.cos(entity.swordAngle) * guardThickness,
+                swordStartY + Math.sin(perpAngle) * guardWidth / 2 + Math.sin(entity.swordAngle) * guardThickness
+            );
+            ctx.lineTo(
+                swordStartX - Math.cos(perpAngle) * guardWidth / 2 + Math.cos(entity.swordAngle) * guardThickness,
+                swordStartY - Math.sin(perpAngle) * guardWidth / 2 + Math.sin(entity.swordAngle) * guardThickness
+            );
+            ctx.lineTo(
+                swordStartX - Math.cos(perpAngle) * guardWidth / 2,
+                swordStartY - Math.sin(perpAngle) * guardWidth / 2
+            );
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.strokeStyle = '#8B7355';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Pommel
+            ctx.fillStyle = entity === player ? '#B8860B' : '#8B7355';
+            ctx.beginPath();
+            ctx.arc(hiltStartX, hiltStartY, entity.size * 0.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#654321';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Add massive swing effect when attacking
+            if (entity.swordActive) {
+                const swingIntensity = 1 - Math.abs(entity.swordSwingProgress - 0.5) * 2;
+                
+                // Main swing glow
+                ctx.fillStyle = `rgba(220, 235, 255, ${0.3 * swingIntensity})`;
+                ctx.beginPath();
+                const glowTipX = screenX + Math.cos(entity.swordAngle) * (entity.size + scaledSwordLength + 10);
+                const glowTipY = screenY + Math.sin(entity.swordAngle) * (entity.size + scaledSwordLength + 10);
+                const glowWidth = (scaledSwordWidth + 15) / 2;
+                ctx.moveTo(glowTipX, glowTipY);
+                ctx.lineTo(
+                    swordStartX + Math.cos(perpAngle) * glowWidth,
+                    swordStartY + Math.sin(perpAngle) * glowWidth
+                );
+                ctx.lineTo(
+                    swordStartX - Math.cos(perpAngle) * glowWidth,
+                    swordStartY - Math.sin(perpAngle) * glowWidth
+                );
+                ctx.closePath();
+                ctx.fill();
+                
+                // Motion blur arc
+                const arcSteps = 5;
+                for (let i = 0; i < arcSteps; i++) {
+                    const arcProgress = entity.swordSwingProgress - 0.08 * i;
+                    if (arcProgress > 0 && arcProgress < 1) {
+                        const arcOffset = (arcProgress - 0.5) * SWORD_SWING_ANGLE;
+                        const arcAngle = entity.swordBaseAngle + arcOffset;
+                        const arcEndX = screenX + Math.cos(arcAngle) * (entity.size + scaledSwordLength);
+                        const arcEndY = screenY + Math.sin(arcAngle) * (entity.size + scaledSwordLength);
+                        
+                        ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 * swingIntensity * (1 - i / arcSteps)})`;
+                        ctx.lineWidth = scaledSwordWidth / 2;
+                        ctx.beginPath();
+                        ctx.moveTo(screenX, screenY);
+                        ctx.lineTo(arcEndX, arcEndY);
+                        ctx.stroke();
+                    }
+                }
+            }
+            
+            // Draw name
+            ctx.fillStyle = entity === player ? '#FFD700' : '#FFF';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.strokeText(entity.name, screenX, screenY - entity.size - 20);
+            ctx.fillText(entity.name, screenX, screenY - entity.size - 20);
+        }
+        
+        // Helper functions for color manipulation
+        function lightenColor(color, percent) {
+            const num = parseInt(color.replace('#', ''), 16);
+            const r = Math.min(255, ((num >> 16) & 255) + percent);
+            const g = Math.min(255, ((num >> 8) & 255) + percent);
+            const b = Math.min(255, (num & 255) + percent);
+            return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+        }
+        
+        function darkenColor(color, percent) {
+            const num = parseInt(color.replace('#', ''), 16);
+            const r = Math.max(0, ((num >> 16) & 255) - percent);
+            const g = Math.max(0, ((num >> 8) & 255) - percent);
+            const b = Math.max(0, (num & 255) - percent);
+            return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+        }
+        
+        function drawNearestBotIndicators() {
+            // Find the current leader (biggest entity)
+            const allEntities = [player, ...bots];
+            const leader = allEntities.reduce((prev, current) => 
+                current.size > prev.size ? current : prev
+            );
+            
+            // Draw leader arrow if it's not the player
+            if (leader !== player) {
+                const leaderAngle = Math.atan2(leader.y - player.y, leader.x - player.x);
+                const leaderDistance = Math.hypot(leader.x - player.x, leader.y - player.y);
+                
+                // Determine arrow position
+                let leaderArrowX, leaderArrowY;
+                const margin = 60;
+                
+                const leaderScreenX = leader.x - camera.x;
+                const leaderScreenY = leader.y - camera.y;
+                const isOffScreen = leaderScreenX < 0 || leaderScreenX > CANVAS_SIZE || 
+                                   leaderScreenY < 0 || leaderScreenY > CANVAS_SIZE;
+                
+                if (isOffScreen) {
+                    // Place arrow at screen edge
+                    const centerX = CANVAS_SIZE / 2;
+                    const centerY = CANVAS_SIZE / 2;
+                    
+                    const rayLength = CANVAS_SIZE * 2;
+                    const targetX = centerX + Math.cos(leaderAngle) * rayLength;
+                    const targetY = centerY + Math.sin(leaderAngle) * rayLength;
+                    
+                    leaderArrowX = Math.max(margin, Math.min(CANVAS_SIZE - margin, targetX));
+                    leaderArrowY = Math.max(margin, Math.min(CANVAS_SIZE - margin, targetY));
+                    
+                    if (targetX < margin) leaderArrowX = margin;
+                    else if (targetX > CANVAS_SIZE - margin) leaderArrowX = CANVAS_SIZE - margin;
+                    
+                    if (targetY < margin) leaderArrowY = margin;
+                    else if (targetY > CANVAS_SIZE - margin) leaderArrowY = CANVAS_SIZE - margin;
+                } else {
+                    leaderArrowX = leaderScreenX;
+                    leaderArrowY = leaderScreenY;
+                }
+                
+                // Draw crown/leader indicator
+                const crownSize = 25;
+                
+                // Crown outline
+                ctx.strokeStyle = '#FFD700';
+                ctx.lineWidth = 3;
+                ctx.fillStyle = '#FFD700';
+                
+                // Crown shape
+                ctx.beginPath();
+                ctx.moveTo(leaderArrowX - crownSize/2, leaderArrowY);
+                ctx.lineTo(leaderArrowX - crownSize/3, leaderArrowY - crownSize/2);
+                ctx.lineTo(leaderArrowX - crownSize/6, leaderArrowY - crownSize/4);
+                ctx.lineTo(leaderArrowX, leaderArrowY - crownSize/1.5);
+                ctx.lineTo(leaderArrowX + crownSize/6, leaderArrowY - crownSize/4);
+                ctx.lineTo(leaderArrowX + crownSize/3, leaderArrowY - crownSize/2);
+                ctx.lineTo(leaderArrowX + crownSize/2, leaderArrowY);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                // Leader arrow pointing to leader
+                const arrowSize = 30;
+                ctx.strokeStyle = '#FFD700';
+                ctx.lineWidth = 5;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                const shaftLength = 40;
+                const shaftStartX = leaderArrowX - Math.cos(leaderAngle) * shaftLength / 2;
+                const shaftStartY = leaderArrowY - Math.sin(leaderAngle) * shaftLength / 2;
+                const shaftEndX = leaderArrowX + Math.cos(leaderAngle) * shaftLength / 2;
+                const shaftEndY = leaderArrowY + Math.sin(leaderAngle) * shaftLength / 2;
+                ctx.moveTo(shaftStartX, shaftStartY);
+                ctx.lineTo(shaftEndX, shaftEndY);
+                ctx.stroke();
+                
+                // Arrow head
+                ctx.fillStyle = '#FFD700';
+                ctx.beginPath();
+                ctx.moveTo(shaftEndX, shaftEndY);
+                ctx.lineTo(
+                    shaftEndX - Math.cos(leaderAngle - 0.5) * arrowSize,
+                    shaftEndY - Math.sin(leaderAngle - 0.5) * arrowSize
+                );
+                ctx.lineTo(
+                    shaftEndX - Math.cos(leaderAngle + 0.5) * arrowSize,
+                    shaftEndY - Math.sin(leaderAngle + 0.5) * arrowSize
+                );
+                ctx.closePath();
+                ctx.fill();
+                
+                // Leader label
+                if (isOffScreen) {
+                    ctx.fillStyle = '#FFD700';
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 3;
+                    ctx.font = 'bold 16px Arial';
+                    ctx.textAlign = 'center';
+                    const distText = 'LEADER ' + Math.floor(leaderDistance) + 'm';
+                    ctx.strokeText(distText, leaderArrowX, leaderArrowY + 35);
+                    ctx.fillText(distText, leaderArrowX, leaderArrowY + 35);
+                } else {
+                    ctx.fillStyle = '#FFD700';
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 3;
+                    ctx.font = 'bold 14px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.strokeText('LEADER', leaderArrowX, leaderArrowY + 35);
+                    ctx.fillText('LEADER', leaderArrowX, leaderArrowY + 35);
+                }
+            }
+            
+            // Find three nearest bots to player
+            const botsWithDistance = bots.map(bot => ({
+                bot: bot,
+                distance: Math.hypot(bot.x - player.x, bot.y - player.y)
+            }));
+            
+            botsWithDistance.sort((a, b) => a.distance - b.distance);
+            const nearestThree = botsWithDistance.slice(0, 3);
+            
+            // Draw arrows for each
+            nearestThree.forEach((item, index) => {
+                const bot = item.bot;
+                const angle = Math.atan2(bot.y - player.y, bot.x - player.x);
+                const distance = item.distance;
+                
+                // Determine arrow position on screen edge
+                let arrowX, arrowY;
+                const margin = 40;
+                
+                // Check if bot is off-screen
+                const botScreenX = bot.x - camera.x;
+                const botScreenY = bot.y - camera.y;
+                const isOffScreen = botScreenX < 0 || botScreenX > CANVAS_SIZE || 
+                                   botScreenY < 0 || botScreenY > CANVAS_SIZE;
+                
+                if (isOffScreen) {
+                    // Place arrow at screen edge
+                    const centerX = CANVAS_SIZE / 2;
+                    const centerY = CANVAS_SIZE / 2;
+                    
+                    // Calculate intersection with screen bounds
+                    const rayLength = CANVAS_SIZE * 2;
+                    const targetX = centerX + Math.cos(angle) * rayLength;
+                    const targetY = centerY + Math.sin(angle) * rayLength;
+                    
+                    // Clamp to screen bounds with margin
+                    arrowX = Math.max(margin, Math.min(CANVAS_SIZE - margin, targetX));
+                    arrowY = Math.max(margin, Math.min(CANVAS_SIZE - margin, targetY));
+                    
+                    // Adjust to actual edge
+                    if (targetX < margin) arrowX = margin;
+                    else if (targetX > CANVAS_SIZE - margin) arrowX = CANVAS_SIZE - margin;
+                    
+                    if (targetY < margin) arrowY = margin;
+                    else if (targetY > CANVAS_SIZE - margin) arrowY = CANVAS_SIZE - margin;
+                } else {
+                    // Bot is on screen, point directly at it
+                    arrowX = botScreenX;
+                    arrowY = botScreenY;
+                }
+                
+                // Draw arrow
+                const arrowSize = 20;
+                const arrowColor = index === 0 ? '#FF0000' : (index === 1 ? '#FF6600' : '#FFAA00');
+                
+                // Arrow shaft
+                ctx.strokeStyle = arrowColor;
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                const shaftLength = 30;
+                const shaftStartX = arrowX - Math.cos(angle) * shaftLength / 2;
+                const shaftStartY = arrowY - Math.sin(angle) * shaftLength / 2;
+                const shaftEndX = arrowX + Math.cos(angle) * shaftLength / 2;
+                const shaftEndY = arrowY + Math.sin(angle) * shaftLength / 2;
+                ctx.moveTo(shaftStartX, shaftStartY);
+                ctx.lineTo(shaftEndX, shaftEndY);
+                ctx.stroke();
+                
+                // Arrow head
+                ctx.fillStyle = arrowColor;
+                ctx.beginPath();
+                ctx.moveTo(shaftEndX, shaftEndY);
+                ctx.lineTo(
+                    shaftEndX - Math.cos(angle - 0.5) * arrowSize,
+                    shaftEndY - Math.sin(angle - 0.5) * arrowSize
+                );
+                ctx.lineTo(
+                    shaftEndX - Math.cos(angle + 0.5) * arrowSize,
+                    shaftEndY - Math.sin(angle + 0.5) * arrowSize
+                );
+                ctx.closePath();
+                ctx.fill();
+                
+                // Distance text if off-screen
+                if (isOffScreen) {
+                    ctx.fillStyle = '#FFF';
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 3;
+                    ctx.font = 'bold 14px Arial';
+                    ctx.textAlign = 'center';
+                    const distText = Math.floor(distance) + 'm';
+                    ctx.strokeText(distText, arrowX, arrowY - 25);
+                    ctx.fillText(distText, arrowX, arrowY - 25);
+                }
+            });
+        }
+        
+        function drawGrid() {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            
+            const startX = Math.floor(camera.x / BLOCK_SIZE) * BLOCK_SIZE;
+            const startY = Math.floor(camera.y / BLOCK_SIZE) * BLOCK_SIZE;
+            
+            for (let x = startX; x < camera.x + CANVAS_SIZE; x += BLOCK_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(x - camera.x, 0);
+                ctx.lineTo(x - camera.x, CANVAS_SIZE);
+                ctx.stroke();
+            }
+            
+            for (let y = startY; y < camera.y + CANVAS_SIZE; y += BLOCK_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(0, y - camera.y);
+                ctx.lineTo(CANVAS_SIZE, y - camera.y);
+                ctx.stroke();
+            }
+        }
+        
+        function updateLeaderboard() {
+            // Update timer
+            const elapsed = (Date.now() - roundStartTime) / 1000;
+            timeRemaining = Math.max(0, ROUND_DURATION - elapsed);
+            
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = Math.floor(timeRemaining % 60);
+            const timerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            const timerElement = document.getElementById('timer');
+            timerElement.textContent = timerText;
+            
+            // Change color when time is running out
+            if (timeRemaining <= 30) {
+                timerElement.style.color = '#FF0000';
+                timerElement.style.borderColor = '#FF0000';
+            } else if (timeRemaining <= 60) {
+                timerElement.style.color = '#FFA500';
+                timerElement.style.borderColor = '#FFA500';
+            } else {
+                timerElement.style.color = '#FFF';
+                timerElement.style.borderColor = '#e94560';
+            }
+            
+            // End round when time is up
+            if (timeRemaining <= 0 && !window.roundEnded) {
+                window.roundEnded = true;
+                showSwordSelection();
+            }
+            
+            const entities = [player, ...bots];
+            entities.sort((a, b) => b.size - a.size);
+            
+            const top10 = entities.slice(0, 10);
+            const listHTML = top10.map((entity, index) => {
+                const isPlayer = entity === player;
+                return `<div class="leaderboard-entry ${isPlayer ? 'player' : ''}">
+                    <span>${index + 1}. ${entity.name}</span>
+                    <span>${Math.floor(entity.size)}</span>
+                </div>`;
+            }).join('');
+            
+            document.getElementById('leaderboardList').innerHTML = listHTML;
+            document.getElementById('score').textContent = 
+                `Size: ${Math.floor(player.size)} | Kills: ${player.kills}`;
+        }
+        
+        function showSwordSelection() {
+            const modal = document.getElementById('swordSelectionModal');
+            const finalStats = document.getElementById('finalStats');
+            const swordGrid = document.getElementById('swordGrid');
+            
+            finalStats.textContent = `Final Size: ${Math.floor(player.size)} | Kills: ${player.kills}`;
+            
+            // Generate sword cards
+            swordGrid.innerHTML = '';
+            swordTiers.forEach(sword => {
+                const isUnlocked = player.kills >= sword.requirement;
+                
+                const card = document.createElement('div');
+                card.className = `sword-card ${isUnlocked ? '' : 'locked'}`;
+                
+                // Sword preview (simple visual representation)
+                const preview = document.createElement('div');
+                preview.className = 'sword-preview';
+                preview.innerHTML = `<div style="width: ${sword.length / 3}px; height: ${sword.width / 2}px; background: linear-gradient(to right, ${sword.color}, white, ${sword.color}); clip-path: polygon(0% 50%, 80% 0%, 100% 50%, 80% 100%);"></div>`;
+                
+                card.innerHTML = `
+                    <div class="sword-name">${sword.name}</div>
+                    ${preview.outerHTML}
+                    <div class="sword-stats">Length: ${sword.length}</div>
+                    <div class="sword-stats">Width: ${sword.width}</div>
+                    <div class="sword-stats">Damage: ${Math.round(sword.damage * 100)}%</div>
+                    ${!isUnlocked ? `<div class="sword-requirement">🔒 Requires ${sword.requirement} kills</div>` : ''}
+                `;
+                
+                if (isUnlocked) {
+                    card.onclick = () => selectSword(sword);
+                }
+                
+                swordGrid.appendChild(card);
+            });
+            
+            modal.style.display = 'flex';
+        }
+        
+        function selectSword(sword) {
+            currentSword = sword;
+            SWORD_LENGTH = sword.length;
+            SWORD_WIDTH = sword.width;
+            SWORD_DAMAGE = sword.damage;
+            
+            // Hide modal
+            document.getElementById('swordSelectionModal').style.display = 'none';
+            
+            // Reset for new round
+            roundStartTime = Date.now();
+            window.roundEnded = false;
+            window.victoryTriggered = false;
+            player.x = WORLD_SIZE / 2;
+            player.y = WORLD_SIZE / 2;
+            player.size = INITIAL_SIZE;
+            player.kills = 0;
+            
+            // Respawn all bots
+            bots.forEach(bot => respawnEntity(bot));
+        }
+        
+        function gameLoop() {
+            // Update
+            updatePlayer();
+            updateBots();
+            resolveCollisions();
+            updateNotifications();
+            updateShockwave();
+            
+            // Calculate camera zoom based on player size
+            const baseZoom = 1;
+            const zoomFactor = baseZoom + (player.size - INITIAL_SIZE) / 150; // Zoom out as player grows
+            const effectiveCanvasSize = CANVAS_SIZE * zoomFactor;
+            
+            // Update camera to follow player with zoom
+            camera.x = player.x - effectiveCanvasSize / 2;
+            camera.y = player.y - effectiveCanvasSize / 2;
+            camera.x = Math.max(0, Math.min(WORLD_SIZE - effectiveCanvasSize, camera.x));
+            camera.y = Math.max(0, Math.min(WORLD_SIZE - effectiveCanvasSize, camera.y));
+            
+            // Draw
+            ctx.save();
+            
+            // Apply zoom by scaling
+            const scale = 1 / zoomFactor;
+            ctx.scale(scale, scale);
+            
+            // Adjust camera for scaling
+            const scaledCanvasSize = CANVAS_SIZE * zoomFactor;
+            
+            ctx.fillStyle = '#0f3460';
+            ctx.fillRect(0, 0, scaledCanvasSize, scaledCanvasSize);
+            
+            drawGrid();
+            
+            // Draw world boundary
+            ctx.strokeStyle = '#e94560';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(-camera.x, -camera.y, WORLD_SIZE, WORLD_SIZE);
+            
+            // Draw all bots (skip if disintegrated by shockwave)
+            bots.forEach(bot => {
+                if (bot.size > 0) {
+                    drawEntity(bot);
+                }
+            });
+            
+            // Draw player on top
+            drawEntity(player);
+            
+            // Draw shockwave effect
+            drawShockwave();
+            
+            ctx.restore();
+            
+            // Draw nearest bot indicators (after restore, so they stay same size)
+            drawNearestBotIndicators();
+            
+            // Draw notifications on top of everything
+            drawNotifications();
+            
+            // Update UI
+            updateLeaderboard();
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        gameLoop();
+    </script>
+</body>
+</html>
