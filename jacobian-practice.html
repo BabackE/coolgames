@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jacobian Matrix Practice</title>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-card: #1f2b47;
+            --accent: #e94560;
+            --accent-glow: rgba(233, 69, 96, 0.3);
+            --text-primary: #edf2f4;
+            --text-secondary: #8d99ae;
+            --success: #4ecdc4;
+            --border: #2d3a5a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Crimson Pro', Georgia, serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 2rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--text-primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1rem;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-family: 'Crimson Pro', serif;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .tab:hover {
+            border-color: var(--accent);
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .panel {
+            display: none;
+        }
+
+        .panel.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Patterns Panel */
+        .pattern-grid {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .pattern-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .pattern-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .pattern-card h3 {
+            color: var(--accent);
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .pattern-formula {
+            background: var(--bg-secondary);
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 0.75rem 0;
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .pattern-examples {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .pattern-examples h4 {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .example-item {
+            background: var(--bg-secondary);
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            margin: 0.5rem 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+        }
+
+        /* Practice Panel */
+        .practice-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            background: var(--accent);
+            border: none;
+            color: white;
+            font-family: 'Crimson Pro', serif;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px var(--accent-glow);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent);
+            box-shadow: none;
+        }
+
+        .difficulty-select {
+            padding: 0.75rem 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            font-family: 'Crimson Pro', serif;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .difficulty-select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .question-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .question-number {
+            background: var(--accent);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .question-type {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .function-display {
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .function-display .katex {
+            font-size: 1.4rem;
+        }
+
+        .answer-section {
+            margin-top: 1.5rem;
+        }
+
+        .answer-toggle {
+            width: 100%;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border: 1px dashed var(--border);
+            color: var(--text-secondary);
+            font-family: 'Crimson Pro', serif;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .answer-toggle:hover {
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .answer-toggle.revealed {
+            border-style: solid;
+            border-color: var(--success);
+            background: rgba(78, 205, 196, 0.1);
+        }
+
+        .answer-content {
+            display: none;
+            margin-top: 1rem;
+            padding: 1.5rem;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border-left: 3px solid var(--success);
+        }
+
+        .answer-content.visible {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .answer-content h4 {
+            color: var(--success);
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+
+        .matrix-display {
+            text-align: center;
+            margin: 1rem 0;
+        }
+
+        .matrix-display .katex {
+            font-size: 1.2rem;
+        }
+
+        .step-explanation {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .step-explanation p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin: 0.5rem 0;
+        }
+
+        .step-explanation code {
+            background: var(--bg-card);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--accent);
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 1.5rem;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Stats bar */
+        .stats-bar {
+            display: flex;
+            gap: 2rem;
+            padding: 1rem 1.5rem;
+            background: var(--bg-card);
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .container {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .tabs {
+                flex-direction: column;
+            }
+
+            .practice-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .stats-bar {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Jacobian Matrix Practice</h1>
+            <p>Master partial derivatives through deliberate practice</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="practice">Practice Problems</button>
+            <button class="tab" data-tab="patterns">Pattern Reference</button>
+        </div>
+
+        <!-- Patterns Panel -->
+        <div class="panel" id="patterns">
+            <div class="pattern-grid">
+                <div class="pattern-card">
+                    <h3>🔑 The Universal Chain Rule Pattern</h3>
+                    <div class="pattern-formula" id="universal-pattern"></div>
+                    <p style="color: var(--text-secondary);">In words: <strong>derivative of the outer × derivative of the inner</strong></p>
+                </div>
+
+                <div class="pattern-card">
+                    <h3>Trigonometric Functions</h3>
+                    <div class="pattern-formula" id="sin-pattern"></div>
+                    <div class="pattern-formula" id="cos-pattern"></div>
+                    <div class="pattern-examples">
+                        <h4>Examples</h4>
+                        <div class="example-item" id="trig-example-1"></div>
+                        <div class="example-item" id="trig-example-2"></div>
+                    </div>
+                </div>
+
+                <div class="pattern-card">
+                    <h3>Exponential & Logarithm</h3>
+                    <div class="pattern-formula" id="exp-pattern"></div>
+                    <div class="pattern-formula" id="ln-pattern"></div>
+                    <div class="pattern-examples">
+                        <h4>Examples</h4>
+                        <div class="example-item" id="exp-example-1"></div>
+                        <div class="example-item" id="exp-example-2"></div>
+                    </div>
+                </div>
+
+                <div class="pattern-card">
+                    <h3>Power Rule</h3>
+                    <div class="pattern-formula" id="power-pattern"></div>
+                    <div class="pattern-examples">
+                        <h4>Examples</h4>
+                        <div class="example-item" id="power-example-1"></div>
+                        <div class="example-item" id="power-example-2"></div>
+                    </div>
+                </div>
+
+                <div class="pattern-card">
+                    <h3>Product Rule (when needed)</h3>
+                    <div class="pattern-formula" id="product-pattern"></div>
+                    <div class="pattern-examples">
+                        <h4>Example</h4>
+                        <div class="example-item" id="product-example"></div>
+                    </div>
+                </div>
+
+                <div class="pattern-card">
+                    <h3>💡 Remember for Jacobians</h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 1rem;">The Jacobian matrix J for <strong>f: ℝⁿ → ℝᵐ</strong> is an <strong>m × n</strong> matrix where:</p>
+                    <div class="pattern-formula" id="jacobian-structure"></div>
+                    <p style="color: var(--text-secondary); margin-top: 1rem;">Row i contains all partials of fᵢ. Column j contains partials with respect to xⱼ.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Practice Panel -->
+        <div class="panel active" id="practice">
+            <div class="practice-controls">
+                <button class="btn" id="new-question">
+                    <span>✨</span> New Question
+                </button>
+                <select class="difficulty-select" id="difficulty">
+                    <option value="easy">Easy (2×2, polynomials)</option>
+                    <option value="medium" selected>Medium (2×2 or 3×2, mixed)</option>
+                    <option value="hard">Hard (3×3, all function types)</option>
+                </select>
+                <button class="btn btn-secondary" id="generate-set">
+                    Generate 5 Questions
+                </button>
+            </div>
+
+            <div class="stats-bar">
+                <div class="stat">
+                    <div class="stat-value" id="questions-generated">0</div>
+                    <div class="stat-label">Generated</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="answers-revealed">0</div>
+                    <div class="stat-label">Checked</div>
+                </div>
+            </div>
+
+            <div id="questions-container">
+                <div class="empty-state">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    <h3>Ready to practice?</h3>
+                    <p>Click "New Question" to generate a Jacobian problem</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Stats
+        let questionsGenerated = 0;
+        let answersRevealed = 0;
+        let questionCounter = 0;
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Render patterns on load
+        function renderPatterns() {
+            const patterns = {
+                'universal-pattern': '\\frac{\\partial}{\\partial x}\\Big[ f(\\text{stuff}) \\Big] = f\'(\\text{stuff}) \\cdot \\frac{\\partial(\\text{stuff})}{\\partial x}',
+                'sin-pattern': '\\frac{\\partial}{\\partial x}\\sin(\\text{stuff}) = \\cos(\\text{stuff}) \\cdot \\frac{\\partial(\\text{stuff})}{\\partial x}',
+                'cos-pattern': '\\frac{\\partial}{\\partial x}\\cos(\\text{stuff}) = -\\sin(\\text{stuff}) \\cdot \\frac{\\partial(\\text{stuff})}{\\partial x}',
+                'exp-pattern': '\\frac{\\partial}{\\partial x}e^{\\text{stuff}} = e^{\\text{stuff}} \\cdot \\frac{\\partial(\\text{stuff})}{\\partial x}',
+                'ln-pattern': '\\frac{\\partial}{\\partial x}\\ln(\\text{stuff}) = \\frac{1}{\\text{stuff}} \\cdot \\frac{\\partial(\\text{stuff})}{\\partial x}',
+                'power-pattern': '\\frac{\\partial}{\\partial x}(\\text{stuff})^n = n(\\text{stuff})^{n-1} \\cdot \\frac{\\partial(\\text{stuff})}{\\partial x}',
+                'product-pattern': '\\frac{\\partial}{\\partial x}(u \\cdot v) = u \\cdot \\frac{\\partial v}{\\partial x} + v \\cdot \\frac{\\partial u}{\\partial x}',
+                'trig-example-1': '\\frac{\\partial}{\\partial x} \\sin(x^2y) = \\cos(x^2y) \\cdot 2xy',
+                'trig-example-2': '\\frac{\\partial}{\\partial y} \\cos(x+y^2) = -\\sin(x+y^2) \\cdot 2y',
+                'exp-example-1': '\\frac{\\partial}{\\partial x} e^{xy} = e^{xy} \\cdot y',
+                'exp-example-2': '\\frac{\\partial}{\\partial y} \\ln(x^2+y) = \\frac{1}{x^2+y} \\cdot 1',
+                'power-example-1': '\\frac{\\partial}{\\partial x} (2x+y)^3 = 3(2x+y)^2 \\cdot 2',
+                'power-example-2': '\\frac{\\partial}{\\partial y} (xy)^2 = 2(xy) \\cdot x',
+                'product-example': '\\frac{\\partial}{\\partial x} (x^2 \\sin y) = 2x \\sin y',
+                'jacobian-structure': 'J_{ij} = \\frac{\\partial f_i}{\\partial x_j}'
+            };
+
+            for (const [id, latex] of Object.entries(patterns)) {
+                const el = document.getElementById(id);
+                if (el) {
+                    katex.render(latex, el, { displayMode: true });
+                }
+            }
+        }
+
+        // Function generators
+        const variables = ['x', 'y', 'z'];
+
+        function randomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function randomChoice(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+
+        function generatePolynomialTerm(vars, complexity = 'medium') {
+            const coef = randomInt(1, 5);
+            const v1 = randomChoice(vars);
+            const p1 = randomInt(1, 3);
+            
+            if (complexity === 'easy' || Math.random() < 0.4) {
+                return {
+                    latex: coef === 1 ? `${v1}^{${p1}}` : `${coef}${v1}^{${p1}}`,
+                    derivative: (wrt) => {
+                        if (wrt === v1) {
+                            const newCoef = coef * p1;
+                            const newPow = p1 - 1;
+                            if (newPow === 0) return `${newCoef}`;
+                            if (newPow === 1) return `${newCoef}${v1}`;
+                            return `${newCoef}${v1}^{${newPow}}`;
+                        }
+                        return '0';
+                    }
+                };
+            } else {
+                const v2 = randomChoice(vars.filter(v => v !== v1));
+                const p2 = randomInt(1, 2);
+                return {
+                    latex: coef === 1 ? `${v1}^{${p1}}${v2}^{${p2}}` : `${coef}${v1}^{${p1}}${v2}^{${p2}}`,
+                    derivative: (wrt) => {
+                        if (wrt === v1) {
+                            const newCoef = coef * p1;
+                            const newPow = p1 - 1;
+                            if (newPow === 0) return `${newCoef}${v2}^{${p2}}`;
+                            if (newPow === 1) return `${newCoef}${v1}${v2}^{${p2}}`;
+                            return `${newCoef}${v1}^{${newPow}}${v2}^{${p2}}`;
+                        } else if (wrt === v2) {
+                            const newCoef = coef * p2;
+                            const newPow = p2 - 1;
+                            if (newPow === 0) return `${newCoef}${v1}^{${p1}}`;
+                            if (newPow === 1) return `${newCoef}${v1}^{${p1}}${v2}`;
+                            return `${newCoef}${v1}^{${p1}}${v2}^{${newPow}}`;
+                        }
+                        return '0';
+                    }
+                };
+            }
+        }
+
+        function generateTrigTerm(vars) {
+            const func = randomChoice(['sin', 'cos']);
+            const innerType = randomChoice(['sum', 'product', 'simple']);
+            const v1 = randomChoice(vars);
+            
+            let inner, innerLatex, innerDerivatives;
+            
+            if (innerType === 'simple') {
+                innerLatex = v1;
+                innerDerivatives = {};
+                vars.forEach(v => innerDerivatives[v] = v === v1 ? '1' : '0');
+            } else if (innerType === 'sum') {
+                const v2 = randomChoice(vars.filter(v => v !== v1));
+                innerLatex = `${v1} + ${v2}`;
+                innerDerivatives = {};
+                vars.forEach(v => innerDerivatives[v] = (v === v1 || v === v2) ? '1' : '0');
+            } else {
+                const v2 = randomChoice(vars.filter(v => v !== v1));
+                innerLatex = `${v1}${v2}`;
+                innerDerivatives = {};
+                vars.forEach(v => {
+                    if (v === v1) innerDerivatives[v] = v2;
+                    else if (v === v2) innerDerivatives[v] = v1;
+                    else innerDerivatives[v] = '0';
+                });
+            }
+
+            return {
+                latex: `\\${func}(${innerLatex})`,
+                derivative: (wrt) => {
+                    const innerDeriv = innerDerivatives[wrt];
+                    if (innerDeriv === '0') return '0';
+                    
+                    const outerDeriv = func === 'sin' ? `\\cos(${innerLatex})` : `-\\sin(${innerLatex})`;
+                    if (innerDeriv === '1') return outerDeriv;
+                    return `${innerDeriv}${outerDeriv}`;
+                }
+            };
+        }
+
+        function generateExpTerm(vars) {
+            const v1 = randomChoice(vars);
+            const innerType = randomChoice(['simple', 'product']);
+            
+            let innerLatex, innerDerivatives;
+            
+            if (innerType === 'simple') {
+                innerLatex = v1;
+                innerDerivatives = {};
+                vars.forEach(v => innerDerivatives[v] = v === v1 ? '1' : '0');
+            } else {
+                const v2 = randomChoice(vars.filter(v => v !== v1));
+                innerLatex = `${v1}${v2}`;
+                innerDerivatives = {};
+                vars.forEach(v => {
+                    if (v === v1) innerDerivatives[v] = v2;
+                    else if (v === v2) innerDerivatives[v] = v1;
+                    else innerDerivatives[v] = '0';
+                });
+            }
+
+            return {
+                latex: `e^{${innerLatex}}`,
+                derivative: (wrt) => {
+                    const innerDeriv = innerDerivatives[wrt];
+                    if (innerDeriv === '0') return '0';
+                    if (innerDeriv === '1') return `e^{${innerLatex}}`;
+                    return `${innerDeriv}e^{${innerLatex}}`;
+                }
+            };
+        }
+
+        function generateFunction(vars, difficulty) {
+            const types = difficulty === 'easy' 
+                ? ['poly', 'poly', 'poly']
+                : difficulty === 'medium'
+                    ? ['poly', 'poly', 'trig', 'exp']
+                    : ['poly', 'trig', 'exp', 'trig'];
+            
+            const type = randomChoice(types);
+            
+            if (type === 'poly') return generatePolynomialTerm(vars, difficulty);
+            if (type === 'trig') return generateTrigTerm(vars);
+            return generateExpTerm(vars);
+        }
+
+        function generateQuestion(difficulty) {
+            let numInputs, numOutputs;
+            
+            if (difficulty === 'easy') {
+                numInputs = 2;
+                numOutputs = 2;
+            } else if (difficulty === 'medium') {
+                numInputs = 2;
+                numOutputs = randomChoice([2, 3]);
+            } else {
+                numInputs = randomChoice([2, 3]);
+                numOutputs = 3;
+            }
+
+            const vars = variables.slice(0, numInputs);
+            const functions = [];
+            
+            for (let i = 0; i < numOutputs; i++) {
+                functions.push(generateFunction(vars, difficulty));
+            }
+
+            // Build function display
+            const inputVector = vars.join(' \\\\ ');
+            const outputVector = functions.map(f => f.latex).join(' \\\\ ');
+            const functionLatex = `f\\begin{pmatrix} ${inputVector} \\end{pmatrix} = \\begin{pmatrix} ${outputVector} \\end{pmatrix}`;
+
+            // Build Jacobian matrix
+            const jacobianRows = [];
+            const explanations = [];
+            
+            for (let i = 0; i < numOutputs; i++) {
+                const row = [];
+                for (let j = 0; j < numInputs; j++) {
+                    const deriv = functions[i].derivative(vars[j]);
+                    row.push(deriv);
+                    explanations.push(`\\frac{\\partial f_{${i+1}}}{\\partial ${vars[j]}} = ${deriv}`);
+                }
+                jacobianRows.push(row.join(' & '));
+            }
+
+            const jacobianLatex = `J = \\begin{pmatrix} ${jacobianRows.join(' \\\\ ')} \\end{pmatrix}`;
+
+            return {
+                functionLatex,
+                jacobianLatex,
+                explanations,
+                dimensions: `${numOutputs}×${numInputs}`
+            };
+        }
+
+        function createQuestionCard(question, index) {
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.innerHTML = `
+                <div class="question-header">
+                    <span class="question-number">Question ${index}</span>
+                    <span class="question-type">Jacobian: ${question.dimensions}</span>
+                </div>
+                <div class="function-display" id="function-${index}"></div>
+                <div class="answer-section">
+                    <button class="answer-toggle" data-index="${index}">
+                        👁️ Click to reveal answer
+                    </button>
+                    <div class="answer-content" id="answer-${index}">
+                        <h4>✓ Jacobian Matrix</h4>
+                        <div class="matrix-display" id="matrix-${index}"></div>
+                        <div class="step-explanation">
+                            <p><strong>Each entry computed:</strong></p>
+                            <div id="steps-${index}"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        function addQuestion() {
+            const difficulty = document.getElementById('difficulty').value;
+            const question = generateQuestion(difficulty);
+            questionCounter++;
+            questionsGenerated++;
+            
+            document.getElementById('questions-generated').textContent = questionsGenerated;
+
+            const container = document.getElementById('questions-container');
+            
+            // Remove empty state if present
+            const emptyState = container.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+
+            const card = createQuestionCard(question, questionCounter);
+            container.insertBefore(card, container.firstChild);
+
+            // Render LaTeX
+            katex.render(question.functionLatex, document.getElementById(`function-${questionCounter}`), { displayMode: true });
+            katex.render(question.jacobianLatex, document.getElementById(`matrix-${questionCounter}`), { displayMode: true });
+            
+            const stepsContainer = document.getElementById(`steps-${questionCounter}`);
+            question.explanations.forEach(exp => {
+                const stepDiv = document.createElement('div');
+                stepDiv.className = 'example-item';
+                katex.render(exp, stepDiv, { displayMode: false });
+                stepsContainer.appendChild(stepDiv);
+            });
+
+            // Add toggle handler
+            card.querySelector('.answer-toggle').addEventListener('click', function() {
+                const answerContent = document.getElementById(`answer-${this.dataset.index}`);
+                const isRevealing = !answerContent.classList.contains('visible');
+                
+                answerContent.classList.toggle('visible');
+                this.classList.toggle('revealed');
+                this.textContent = answerContent.classList.contains('visible') 
+                    ? '✓ Answer revealed' 
+                    : '👁️ Click to reveal answer';
+                
+                if (isRevealing) {
+                    answersRevealed++;
+                    document.getElementById('answers-revealed').textContent = answersRevealed;
+                }
+            });
+        }
+
+        function generateSet() {
+            for (let i = 0; i < 5; i++) {
+                addQuestion();
+            }
+        }
+
+        // Event listeners
+        document.getElementById('new-question').addEventListener('click', addQuestion);
+        document.getElementById('generate-set').addEventListener('click', generateSet);
+
+        // Initialize
+        renderPatterns();
+    </script>
+</body>
+</html>
